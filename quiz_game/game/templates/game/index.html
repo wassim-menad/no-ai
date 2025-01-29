@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Game</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .quiz-room {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 400px;
+        }
+
+        .room-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        .players-list {
+            margin-bottom: 2rem;
+        }
+
+        .player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .player.leader {
+            background-color: #e3f2fd;
+        }
+
+        .player-name {
+            font-weight: bold;
+        }
+
+        .player-status {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .status-ready {
+            color: #28a745;
+        }
+
+        .status-not-ready {
+            color: #dc3545;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: opacity 0.3s;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .ready-btn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .start-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .leader-badge {
+            color: #ffd700;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+
+
+
+    {% if request.user.is_authenticated %}
+
+    <div id="intro">
+        <h2>Welcome to the Quiz Game</h2>
+
+        <h3>Hi {{ request.user.username }}</h3>
+    </div>
+    <script>
+            function roominfo(){
+                return {
+                    code: '',
+                    leader: false,
+                    players: [],
+                    init() {
+                        window.roominfoComponent = this;
+                    },
+                    updatecode(code){
+                        this.code = code
+                    },
+                    updatePlayers(players){
+                        this.players = players
+                    },
+                    updateLeader(leader){
+                        console.log(leader)
+                        if (leader == '{{ request.user.username }}'){
+                            this.leader = true
+                        }else{
+                            this.leader = false
+                        }
+                    }
+                }
+            }
+    </script>
+
+
+
+    <div id="lobby" >
+        <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
+        <label for="joinRoomCode">Join Room Code:</label>
+        <input type="text" id="joinRoomCode">
+        <button class="btn btn-primary" onclick="joinRoom()">Join Room</button>
+        <div id="players"></div>
+    </div>
+
+
+    <div class="quiz-room" id="quiz-room" style="display: none;" x-data="roominfo()">
+        <h1 class="room-title">Quiz Room (<span x-text="code"></span>) 🎮</h1>
+        
+
+            <template x-for="player in players">
+                <div class="player"  x-bind:class="{'leader': player.leader}">
+                    <div>
+                        <span class="player-name" x-text="player.user"></span>
+                        <span class="leader-badge" x-text="player.leader ? '👑' : ''"></span>
+                    </div>
+                    <div x-bind:id="'player-' + player.user">
+
+                    </div>
+                
+
+                    </div>
+                    
+                        <span class="player-status status-ready" x-text="player.leader ? '' : (player.ready ? 'Ready' : 'Not Ready')"></span>
+
+                    
+                </div>
+            </template>
+    
+
+        <div class="controls">
+            <!-- Display Start button for leader -->
+             <template x-if="leader">
+                <button class="start-btn" onclick="startGame()">Start Game</button>
+             </template>
+             <template x-if="!leader">
+                <button class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
+             </template>
+             <button class="btn" onclick="disconnect()">disconnect</button>
+            <!-- Display Ready button for non-leaders -->
+            <!-- <button class="ready-btn">I'm Ready!</button> -->
+        </div>
+    </div>
+    <div id="game"  style="display: none;">
+        <div id="question"></div>
+        <div id="options1"></div>
+        <button onclick="submitAnswer()">submit</button>
+    </div>
+
+    
+
+    <script>
+     
+
+        function connectWebSocket() {
+            socket = new WebSocket('ws://' + window.location.host + '/ws/game/');
+        
+            socket.onopen = function () {
+            };
+
+            socket.onmessage = function (e) {
+                const data = JSON.parse(e.data);
+
+                if (data.type === 'room_created') {
+                    roomCode = data.room_code;
+                    players = data.room.players;
+                    console.log(players)
+                    roomcreated(roomCode , players , data.room.leader)
+                } else if (data.type === 'player_status') {
+                    window.roominfoComponent.updatePlayers(data.players)
+                } else if (data.type === 'new_question') {
+                    console.log('gqme started')
+                    showQuestion(data.question);
+                } else if (data.type === 'player_joined') {
+                    players = data.room.players;
+                    roomCode = data.room_code;
+                    roomcreated(roomCode , players , data.room.leader)
+                }else if(data.type === 'player_left'){
+                    players1 = data.players;
+                    window.roominfoComponent.updatePlayers(players1)
+                    window.roominfoComponent.updateLeader(data.leader.user)
+
+                }else if(data.type === 'update_scores'){
+                    players = data.players;
+                    
+                    showscores(players)
+
+                }
+            };
+        }
+
+        connectWebSocket()
+
+
+        function disconnect(){
+            
+            const command = { command: 'leave' };
+            socket.send(JSON.stringify(command));
+            location.reload();
+
+        }
+
+        function createRoom() {
+            const command = { command: 'create' };
+            socket.send(JSON.stringify(command));
+        }
+
+        function roomcreated(roomCode , players , leader) {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('quiz-room').style.display = 'block';
+            window.roominfoComponent.updatecode(roomCode)
+            window.roominfoComponent.updatePlayers(players)
+            window.roominfoComponent.updateLeader(leader)
+            
+        }
+
+        function joinRoom() {
+            const joinRoomCode = document.getElementById('joinRoomCode').value.toUpperCase();
+            const command = { command: 'join', room_code: joinRoomCode };
+            socket.send(JSON.stringify(command));
+        }
+
+        function toggleReady() {
+            const command = { command: 'ready' };
+            socket.send(JSON.stringify(command));
+           // playerReady = !playerReady;
+        }
+
+        function startGame() {
+            const command = { command: 'start' };
+            socket.send(JSON.stringify(command));
+        }
+
+        function submitAnswer() {
+            const selectedOption = document.querySelector('input[name="answer"]:checked');
+            if (!selectedOption) {
+                alert("Please select an answer.");
+                return;
+            }
+
+            const command = {
+                command: 'answer',
+                answer: parseInt(selectedOption.value)
+            };
+            socket.send(JSON.stringify(command));
+        }
+
+        function showscores(players){
+            window.roominfoComponent.updatePlayers(players)
+            document.getElementById('game').style.display = 'none';;
+            document.getElementById('quiz-room').style.display = 'block';
+            players.forEach(player => {
+        // Assuming each player's ID is prefixed with 'player-'
+            const playerScoreDiv = document.getElementById('player-' + player.user);
+
+            if (playerScoreDiv) {
+                console.log('Found div for player:', player.user);
+                // You can modify the div or do anything else with it here
+                
+                playerScoreDiv.innerHTML = `<span>${player.score}</span>`;
+            } else {
+            console.log('Div not found for player:', player.user);
+            }
+    });
+
+            
+            
+                
+                
+                
+                
+            
+
+
+        }
+
+        function showQuestion(question) {
+            gameStarted = true;
+            document.getElementById('quiz-room').style.display = 'none';;
+            document.getElementById('game').style.display = 'block';
+
+            const questionDiv = document.getElementById('question');
+            questionDiv.innerText = question.text;
+
+            const optionsDiv = document.getElementById('options1');
+            optionsDiv.innerHTML = '';
+            question.options.forEach((option, index) => {
+                const optionLabel = document.createElement('label');
+                optionLabel.innerHTML = `
+                    <input type="radio" name="answer" value="${index}">
+                    ${option}
+                `;
+                optionsDiv.appendChild(optionLabel);
+            });
+        }
+    </script>
+    {% else %}
+    <h1>You are not authenticated</h1>
+    <a href="{% url 'login' %}">Login</a>
+    <a href="{% url 'register' %}">Register</a>
+    {% endif %}
+</body>
+</html>

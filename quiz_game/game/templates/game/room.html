@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room {{ room_code }}</title>
+    <script>
+        const roomCode = "{{ room_code }}";
+        const username = localStorage.getItem('name');
+        const socket = new WebSocket(`ws://${window.location.host}/ws/room/${roomCode}/`);
+
+        socket.onopen = () => {
+            socket.send(JSON.stringify({
+                command: 'identify',
+                name: username,
+                room: roomCode
+            }));
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Message from server:', data);
+        };
+    </script>
+</head>
+<body>
+    <h1>Welcome to Room {{ room_code }}</h1>
+</body>
+</html>
