@@ -134,6 +134,10 @@
                         }else{
                             this.leader = false
                         }
+                    },
+                    updatescoredisplay(){
+
+                        
                     }
                 }
             }
@@ -160,13 +164,10 @@
                         <span class="player-name" x-text="player.user"></span>
                         <span class="leader-badge" x-text="player.leader ? '👑' : ''"></span>
                     </div>
-                    <div x-bind:id="'player-' + player.user">
-
-                    </div>
-                
-
-                    </div>
                     
+                        <span x-text="player.score"></span>
+                    
+
                         <span class="player-status status-ready" x-text="player.leader ? '' : (player.ready ? 'Ready' : 'Not Ready')"></span>
 
                     
@@ -182,7 +183,7 @@
              <template x-if="!leader">
                 <button class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
              </template>
-             <button class="btn" onclick="disconnect()">disconnect</button>
+             <button class="btn" onclick="Senddisconnect()">disconnect</button>
             <!-- Display Ready button for non-leaders -->
             <!-- <button class="ready-btn">I'm Ready!</button> -->
         </div>
@@ -190,7 +191,7 @@
     <div id="game"  style="display: none;">
         <div id="question"></div>
         <div id="options1"></div>
-        <button onclick="submitAnswer()">submit</button>
+        <button class="btn" id="submit_button" onclick="submitAnswer()">submit</button>
     </div>
 
     
@@ -210,16 +211,18 @@
                 if (data.type === 'room_created') {
                     roomCode = data.room_code;
                     players = data.room.players;
-                    console.log(players)
+                    console.log('room has been created',players)
                     roomcreated(roomCode , players , data.room.leader)
                 } else if (data.type === 'player_status') {
                     window.roominfoComponent.updatePlayers(data.players)
                 } else if (data.type === 'new_question') {
                     console.log('gqme started')
+                    console.log("step 1")
                     showQuestion(data.question);
                 } else if (data.type === 'player_joined') {
                     players = data.room.players;
                     roomCode = data.room_code;
+                    console.log('player has joined')
                     roomcreated(roomCode , players , data.room.leader)
                 }else if(data.type === 'player_left'){
                     players1 = data.players;
@@ -227,23 +230,33 @@
                     window.roominfoComponent.updateLeader(data.leader.user)
 
                 }else if(data.type === 'update_scores'){
-                    players = data.players;
-                    
-                    showscores(players)
-
+                    console.log("step 3",data.players)
+                
+                    document.getElementById('game').style.display = 'none';
+                    roomcreated(data.room_code , data.players , data.leader)
+                }else if(data.type === 'player_disconnected'){                   
+                    disconnect()
+                }else if(data.type === 'answer_recieved'){  
+                    console.log("step 2")                 
+                    document.getElementById('submit_button').style.display='none';
                 }
             };
-        }
+        } 
 
         connectWebSocket()
 
 
-        function disconnect(){
+        function Senddisconnect(){
             
             const command = { command: 'leave' };
             socket.send(JSON.stringify(command));
-            location.reload();
+            
 
+        }
+        function disconnect(){
+            document.getElementById('lobby').style.display = 'block';
+            document.getElementById('quiz-room').style.display = 'none';
+            //connectWebSocket();
         }
 
         function createRoom() {
@@ -273,6 +286,7 @@
         }
 
         function startGame() {
+            console.log('the button was hit')
             const command = { command: 'start' };
             socket.send(JSON.stringify(command));
         }
@@ -292,39 +306,18 @@
         }
 
         function showscores(players){
+            // redo this logic ................................................
             window.roominfoComponent.updatePlayers(players)
-            document.getElementById('game').style.display = 'none';;
+            document.getElementById('game').style.display = 'none';
             document.getElementById('quiz-room').style.display = 'block';
-            players.forEach(player => {
-        // Assuming each player's ID is prefixed with 'player-'
-            const playerScoreDiv = document.getElementById('player-' + player.user);
-
-            if (playerScoreDiv) {
-                console.log('Found div for player:', player.user);
-                // You can modify the div or do anything else with it here
-                
-                playerScoreDiv.innerHTML = `<span>${player.score}</span>`;
-            } else {
-            console.log('Div not found for player:', player.user);
-            }
-    });
-
-            
-            
-                
-                
-                
-                
-            
-
-
+ 
         }
 
         function showQuestion(question) {
             gameStarted = true;
             document.getElementById('quiz-room').style.display = 'none';;
             document.getElementById('game').style.display = 'block';
-
+            document.getElementById('submit_button').style.display='block';
             const questionDiv = document.getElementById('question');
             questionDiv.innerText = question.text;
 
