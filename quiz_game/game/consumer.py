@@ -11,6 +11,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.room_code = None
+        self.question_index = 0
         self.user = self.scope["user"]
 
         
@@ -38,6 +39,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
             await self.handle_answer(data)
         elif command == 'leave':
             await self.leave_room()
+        elif command == 'next':
+            await self.send_next_question()
 
     async def create_room(self, data):
         # Generate unique room code
@@ -115,8 +118,10 @@ class QuizConsumer(AsyncWebsocketConsumer):
     async def toggle_ready(self):
         room = self.rooms[self.room_code]
         player = next(p for p in room['players'] if p['user'] == self.user.username)
-        player['ready'] = True
-        print('player has readied up')
+        player['ready'] = not player['ready']
+        if(player['leader']):
+            player['ready'] = True
+        print('player has readied up', player['ready'])
         await self.channel_layer.group_send(
             self.room_code,
             {
@@ -127,6 +132,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
     async def start_game(self):
         room = self.rooms[self.room_code]
+        self.question_index = 0
         player = next(p for p in room['players'] if p['user'] == self.user.username)
         
         if not player['leader']:
@@ -146,46 +152,138 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
         room['game_started'] = True
         # Here you would typically load questions from your database
-        await self.send_next_question()
+        
+        await self.send_next_question(room)
 
-    async def send_next_question(self):
-        print('ive reached the question part')
+    async def getQuestions(self):
         room = self.rooms[self.room_code]
-        # Replace with actual question loading logic
-        question = {
-            'text': "What is 2+2?",
-            'options': ["3", "4", "5"],
-            'correct_answer': 1
-        }
-        room['current_question'] = question
-
-        await self.channel_layer.group_send(
-            self.room_code,
+        questions = [
             {
-                'type': 'new_question',
-                'question': question
+                "text": "What is 2+2?",
+                "options": ["3", "4", "5"],
+                "correct_answer": 1
+            },
+            {
+                "text": "What is the capital of France?",
+                "options": ["Berlin", "Madrid", "Paris"],
+                "correct_answer": 2
+            },
+                {
+                "text": "Which planet is known as the Red Planet?",
+                "options": ["Earth", "Mars", "Jupiter"],
+                "correct_answer": 1
+            },
+            {
+                "text": "How many continents are there?",
+                "options": ["5", "6", "7"],
+                "correct_answer": 2
+            },
+            {
+                "text": "What is the square root of 16?",
+                "options": ["2", "4", "8"],
+                "correct_answer": 1
+            },
+            {
+                "text": "Who wrote 'Hamlet'?",
+                "options": ["Shakespeare", "Hemingway", "Tolstoy"],
+                "correct_answer": 0
+            },
+            {
+                "text": "Which gas do plants absorb from the atmosphere?",
+                "options": ["Oxygen", "Nitrogen", "Carbon Dioxide"],
+                "correct_answer": 2
+            },
+            {
+                "text": "What is the largest ocean on Earth?",
+                "options": ["Atlantic", "Indian", "Pacific"],
+                "correct_answer": 2
+            },
+            {
+                "text": "How many legs does a spider have?",
+                "options": ["6", "8", "10"],
+                "correct_answer": 1
+            },
+            {
+                "text": "What is the boiling point of water?",
+                "options": ["90°C", "100°C", "110°C"],
+                "correct_answer": 1
             }
-        )
+        ]
+        print(self.question_index)
+        if self.question_index < len(questions):  # Check if questions are available
+            room['current_question'] = questions[self.question_index]
+            self.question_index += 1  # Move to the next question
+            #print(self.question_index)
+            print(room['current_question'])
+            print(len(questions))
+            
+            return room['current_question']
+            
+        else:
+                await self.gameEnd(room)
+                return
+    async def send_next_question(self,room):
+        print(self.user.username,'sent this question')
+        
+        # Replace with actual question loading logic
+        
+       
+        print()
+        room['current_question']=await self.getQuestions()
+
+        if(room['current_question']):
+            await self.channel_layer.group_send(
+                self.room_code,
+                {
+                    'type': 'new_question',
+                    'question': room['current_question']
+                }
+            )
 
     async def handle_answer(self, data):
         room = self.rooms[self.room_code]
         player = next(p for p in room['players'] if p['user'] == self.user.username)
-        print("answer recieved" )
-        player['answered'] = not player['answered']
-        await self.send(text_data=json.dumps({
+        
+        player['answered'] = True
+        await self.channel_layer.group_send({
                 'type': 'answer_recieved',
-            }))
+                'player': player
+            })
         
         # Add answer validation and scoring logic here
         if data['answer'] == room['current_question']['correct_answer']:
             player['score'] += 10
-        if not all(p['answered'] for p in room['players']):
-            
-            return
-        for player in room["players"]:
-            player["answered"] = False
+        if(True):
+            if  all(p['answered'] for p in room['players']):
+                print("answer recieved", room['players'])
+                for player in room["players"]:
+                    player["answered"] = False
+                await self.send_next_question(room)
+            #return
+        
 
         ####check_results()
+        ##await self.channel_layer.group_send(
+        ##    self.room_code,
+        ##    {
+        ##        'type': 'update_scores',
+        ##        'players': room['players'],
+        ##        'leader' : room['leader'],
+        ##        'room_code': self.room_code
+        ##    }
+        ##)
+
+        #await self.send_next_question(room)
+    async def checkReady(self,room):
+        if  all(p['answered'] for p in room['players']):
+                print("answer recieved", room['players'])
+                for player in room["players"]:
+                    player["answered"] = False
+                await self.send_next_question(room)
+    async def gameEnd(self,room):
+        
+        #room = self.rooms[self.room_code]
+        print('ive ended the game',room['players'])
         await self.channel_layer.group_send(
             self.room_code,
             {
@@ -195,7 +293,6 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'room_code': self.room_code
             }
         )
-
     async def leave_room(self):
         
 
@@ -215,15 +312,15 @@ class QuizConsumer(AsyncWebsocketConsumer):
             # If leader leaves, assign new leader
             if not any(p['leader'] for p in room['players']):
                 room['players'][0]['leader'] = True
-                leader=room['players'][0]
-            print(room['players'])
+                room['leader']=room['players'][0]
+            print(room['leader'])
             await self.channel_layer.group_send(
                 
                 self.room_code,
                 {
                     'type': 'player_left',
                     'players': room['players'],
-                    'leader': leader
+                    'leader': room['leader']
                 }
             )
 
