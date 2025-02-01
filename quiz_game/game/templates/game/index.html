@@ -100,6 +100,15 @@
             color: #ffd700;
             margin-left: 0.5rem;
         }
+        .response {
+            padding: 10px;
+            border: 1px solid #ccc;
+            transition: background-color 0.3s;
+        }
+        .response.correct {
+            color: #4CAF50;
+            
+        }
     </style>
 </head>
 
@@ -119,6 +128,7 @@
                     leader: false,
                     players: [],
                     ready:false,
+                    question:null,
                     init() {
                         window.roominfoComponent = this;
                     },
@@ -143,15 +153,15 @@
                             this.leader = false
                         }
                     },
-                    updatestatus(){
-                        
+                    updatequestion(question){
+                        this.question = question
                         
                     }
                 }
             }
     </script>
 
-
+<div x-data="roominfo()">
 
     <div id="lobby" >
         <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
@@ -162,7 +172,7 @@
     </div>
 
 
-    <div class="quiz-room" id="quiz-room" style="display: none;" x-data="roominfo()">
+    <div class="quiz-room" id="quiz-room" style="display: none;" >
         <h1 class="room-title">Quiz Room (<span x-text="code"></span>) 🎮</h1>
         
 
@@ -182,15 +192,15 @@
                     
                 </div>
             </template>
-    
+            
 
         <div class="controls">
             <!-- Display Start button for leader -->
              <template x-if="leader">
-                <button class="start-btn" onclick="startGame()">Start Game</button>
+                <button id="nextt" class="start-btn" onclick="startGame()">Start Game</button>
              </template>
              <template x-if="!leader && !ready">
-                <button class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
+                <button id="nextt" class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
              </template>
              <template x-if="!leader && ready">
                 <button class="ready-btn" style="background-color: #dc3545;" onclick="toggleReady()">cancel!</button>
@@ -199,6 +209,7 @@
             <!-- Display Ready button for non-leaders -->
             <!-- <button class="ready-btn">I'm Ready!</button> -->
         </div>
+        <button class="start-btn" id='next-question' onclick="nextQuestion()">Snext question</button>
     </div>
     <div id="game"  style="display: none;">
         <div id="question"></div>
@@ -207,8 +218,35 @@
         <button class="btn" id="next_button" onclick="submitAnswer()">submit</button>
     </div>
 
-    
+    <!-- this the expirimentall response window -->
+    <div class="quiz-room1" id="answer-room" style="display: none;">
+        <p>this is a test </p>
+        <template x-if="question !== null" >
+            <div>
+            <h1 class="room-title" x-text="question.text"></h1>
+        <p>this is a test 2</p>
+        
+            
+        <p>this is a test 2</p>
+        <div class="responses">
+            <template x-for="(response, index) in question.options" :key="index">
+                <div 
+                    class="response" 
+                    :class="{ correct: index === question.correct_answer }"
+                    x-text="response"
+                ></div>
+            </template>
+        </div>
+        <p>this is a test 2</p>
 
+        
+        <p>this is a test 2</p>
+        <button class="start-btn" id='next-question' onclick="nextQuestion()">Snext question</button>
+    </div>
+    </template>
+    </div>
+</div>
+    
     <script>
      
 
@@ -221,57 +259,93 @@
             socket.onmessage = function (e) {
                 const data = JSON.parse(e.data);
                 console.log(data)
-                if (data.type === 'room_created') {
-                    roomCode = data.room_code;
-                    players = data.room.players;
-                    console.log('room has been created',players)
-                    roomcreated(roomCode , players , data.room.leader)
-                } else if (data.type === 'player_status') {
-                    window.roominfoComponent.updatePlayers(data.players)
-                } else if (data.type === 'new_question') {
-                    console.log('gqme started')
-                    console.log("step 1")
-                    showQuestion(data.question);
-                    document.getElementById('next_button').style.display='block';
-                } else if (data.type === 'player_joined') {
-                    players = data.room.players;
-                    roomCode = data.room_code;
-                    console.log('player has joined')
-                    roomcreated(roomCode , players , data.room.leader)
-                }else if(data.type === 'player_left'){
-                    players1 = data.players;
-                    window.roominfoComponent.updatePlayers(players1)
-                    window.roominfoComponent.updateLeader(data.leader)
+                
+                leader=data.type.info.leader;
+                players=data.type.info.players;
+                //console.log(roomCode,leader,players)
+                switch (data.type.message) {
+    case 'room_created':
+        roomCode=data.type.info.code;
+        console.log('room has been created');
+        roomcreated(roomCode, players, leader);
+        break;
 
-                }else if(data.type === 'update_scores'){
-                    console.log("step 3",data.players)
-                    document.getElementById('game').style.display = 'none';
-                    roomcreated(data.room_code , data.players , data.leader)
-                }else if(data.type === 'player_disconnected'){                   
-                    disconnect()
-                    window.roominfoComponent.updatePlayers(data.players)
-                }else if(data.type === 'answer_recieved'){  
-                    toggleDone(data.player)
-                    console.log("step 2")                 
-                    document.getElementById('next_button').style.display='none';
-                }
+    case 'player_status':
+        window.roominfoComponent.updatePlayers(players);
+        break;
+
+    case 'new_question':
+        console.log(data.type.info.question.text);
+        window.roominfoComponent.updatequestion(data.type.info.question);
+        console.log("step 1");
+        showQuestion(data.type.info.question);
+        document.getElementById('next_button').style.display = 'block';
+        break;
+
+    case 'player_joined':
+        roomCode=data.type.info.code;
+        console.log('player has joined');
+        roomcreated(roomCode, players,leader);
+        break;
+
+    case 'player_left':
+        players1 = data.players;
+        window.roominfoComponent.updatePlayers(players1);
+        window.roominfoComponent.updateLeader(data.leader);
+        break;
+
+    case 'update_scores':
+        roomCode=data.type.info.code;
+        console.log("step 3", data.players);
+        
+        roomcreated(roomCode, players,leader);
+        break;
+
+    case 'player_disconnected':
+        disconnect();
+        //window.roominfoComponent.updatePlayers(data.players);
+        break;
+
+    case 'answer_recieved':
+        toggleDone(players);
+        console.log("step 2");
+        
+        break;
+    case 'scores':
+        roomCode=data.type.info.code;
+        // this is supposed to be that window that shows the answers instead
+        window.roominfoComponent.updatequestion(data.type.info.question);
+        console.log(window.roominfoComponent.question)
+        
+        
+        showScore(players);
+        //showscores(roomCode, players,leader)
+        
+        break;                
+    default:
+        console.warn(`Unknown message type: ${data}`);
+        break;
+}
             };
         } 
 
         connectWebSocket()
-        function toggleDone(user){
-            console.log(user.username) 
-            if(user.username == '{{ request.user.username }}'){
+        function toggleDone(players){
+            us='{{ request.user.username }}';
+            const player = players.find(player => player.user === us)
+            console.log(player.answered,'thiiiis')
+            if(player.answered){
+                
                 document.getElementById('next_button').style.display='none'; 
             };
         }
         function nextQuestion(){
             
             //console.log(i)
-            submitAnswer()
+           // submitAnswer()
             const command = { 
-                command: 'next'/* ,
-                number: i*/
+                command: 'next' 
+                
             };
             socket.send(JSON.stringify(command));
         }
@@ -283,8 +357,7 @@
 
         }
         function disconnect(){
-            document.getElementById('lobby').style.display = 'block';
-            document.getElementById('quiz-room').style.display = 'none';
+            viewLobby()
             //connectWebSocket();
         }
 
@@ -292,13 +365,18 @@
             const command = { command: 'create' };
             socket.send(JSON.stringify(command));
         }
-
+        function showScore(players){
+            console.log('herer 22')
+            window.roominfoComponent.updatePlayers(players)
+            viewAnswer()
+            
+        }
         function roomcreated(roomCode , players , leader) {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('quiz-room').style.display = 'block';
+            viewQuizRoom()
             window.roominfoComponent.updatecode(roomCode)
             window.roominfoComponent.updatePlayers(players)
             window.roominfoComponent.updateLeader(leader)
+            //print('room creation finished')
             
         }
 
@@ -334,18 +412,21 @@
             socket.send(JSON.stringify(command));
         }
 
-        function showscores(players){
+        function showscores(roomCode , players , leader){
             // redo this logic ................................................
             window.roominfoComponent.updatePlayers(players)
             document.getElementById('game').style.display = 'none';
             document.getElementById('quiz-room').style.display = 'block';
+            document.getElementById('nextt').style.display = 'none';
+            window.roominfoComponent.updatecode(roomCode)
+            window.roominfoComponent.updatePlayers(players)
+            window.roominfoComponent.updateLeader(leader)
  
         }
 
         function showQuestion(question) {
             gameStarted = true;
-            document.getElementById('quiz-room').style.display = 'none';;
-            document.getElementById('game').style.display = 'block';
+            viewGame()
             //document.getElementById('submit_button').style.display='block';
             const questionDiv = document.getElementById('question');
             questionDiv.innerText = question.text;
@@ -361,6 +442,34 @@
                 optionsDiv.appendChild(optionLabel);
             });
         }
+
+
+        function viewLobby(){
+            document.getElementById('quiz-room').style.display = 'none';
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('answer-room').style.display = 'none';
+            document.getElementById('lobby').style.display = 'block';
+        }
+        function viewQuizRoom(){
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('answer-room').style.display = 'none';
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('quiz-room').style.display = 'block';
+        }
+        function viewGame(){
+            document.getElementById('quiz-room').style.display = 'none';
+            document.getElementById('answer-room').style.display = 'none';
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+        function viewAnswer(){
+            document.getElementById('quiz-room').style.display = 'none';
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('answer-room').style.display = 'block';
+        }
+
+        
     </script>
     {% else %}
     <h1>You are not authenticated</h1>

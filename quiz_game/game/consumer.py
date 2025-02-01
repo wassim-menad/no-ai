@@ -55,41 +55,39 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'ready': False,
                 'leader': True,
                 'answered':False,
+                'answers':[],
                 'score': 0
             }],
             'leader': self.user.username,
             'game_started': False,
-            'current_question': None,
+            'question': None,
+            'round_number': 0,
+            
+            'code':room_code
         }
 
         await self.channel_layer.group_add(
             self.room_code,
             self.channel_name
         )
-
-        await self.send(text_data=json.dumps({
-            'type': 'room_created',
-            'room_code': room_code,
-            'room': self.rooms[room_code]
-        }))
+        await self.roomUpdate('room_created')
+        # rework the front end too
+        
+        
 
     async def join_room(self, data):
         room_code = data['room_code'].upper()
         username = self.user.username
-
+        
         if room_code not in self.rooms:
-            await self.send(json.dumps({
-                'type': 'error',
-                'message': 'Room not found'
-            }))
+            await self.errortUpdate('Room not found')
+            
             return
 
         room = self.rooms[room_code]
         if len(room['players']) >= 8:  # Example max players
-            await self.send(json.dumps({
-                'type': 'error',
-                'message': 'Room is full'
-            }))
+            await self.errortUpdate('Room is full')
+            
             return
 
         self.room_code = room_code
@@ -98,6 +96,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
             'ready': False,
             'leader': False,
             'answered':False,
+            'answers':[],
             'score': 0
         })
 
@@ -105,15 +104,9 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.room_code,
             self.channel_name
         )
-
-        await self.channel_layer.group_send(
-            self.room_code,
-            {
-                'type': 'player_joined',
-                'room_code': room_code,
-                'room': room
-            }
-        )
+        await self.roomUpdate('player_joined')
+        # rework the front end here 
+        
 
     async def toggle_ready(self):
         room = self.rooms[self.room_code]
@@ -121,39 +114,31 @@ class QuizConsumer(AsyncWebsocketConsumer):
         player['ready'] = not player['ready']
         if(player['leader']):
             player['ready'] = True
-        print('player has readied up', player['ready'])
-        await self.channel_layer.group_send(
-            self.room_code,
-            {
-                'type': 'player_status',
-                'players': room['players']
-            }
-        )
+        
+        await self.roomUpdate('player_status')
+        #rework the front end
+        
 
     async def start_game(self):
         room = self.rooms[self.room_code]
-        self.question_index = 0
+        room['round_number'] = 0
         player = next(p for p in room['players'] if p['user'] == self.user.username)
         
         if not player['leader']:
-            await self.send(json.dumps({
-                'type': 'error',
-                'message': 'Only leader can start the game'
-            }))
+            await self.errortUpdate('Only leader can start the game')
+            
             return
         
-        print(player['leader'])
+        
         if not all(p['ready'] for p in room['players']):
-            await self.send(json.dumps({
-                'type': 'error',
-                'message': 'Not all players are ready'
-            }))
+            await self.errortUpdate('Not all players are ready')
+            
             return
 
         room['game_started'] = True
         # Here you would typically load questions from your database
         
-        await self.send_next_question(room)
+        await self.send_next_question()
 
     async def getQuestions(self):
         room = self.rooms[self.room_code]
@@ -209,56 +194,56 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 "correct_answer": 1
             }
         ]
-        print(self.question_index)
-        if self.question_index < len(questions):  # Check if questions are available
-            room['current_question'] = questions[self.question_index]
-            self.question_index += 1  # Move to the next question
+        
+        if room['round_number'] < len(questions):  # Check if questions are available
+            room['question'] = questions[self.question_index]
+            room['round_number'] += 1  # Move to the next question
             #print(self.question_index)
-            print(room['current_question'])
-            print(len(questions))
             
-            return room['current_question']
+            
+            return room['question']
             
         else:
                 await self.gameEnd(room)
                 return
-    async def send_next_question(self,room):
+    async def send_next_question(self):
+        
         print(self.user.username,'sent this question')
         
         # Replace with actual question loading logic
         
        
-        print()
-        room['current_question']=await self.getQuestions()
-
-        if(room['current_question']):
-            await self.channel_layer.group_send(
-                self.room_code,
-                {
-                    'type': 'new_question',
-                    'question': room['current_question']
-                }
-            )
+        
+        self.rooms[self.room_code]['question']=await self.getQuestions()
+        
+        if(self.rooms[self.room_code]['question']):
+            self.rooms[self.room_code]['round_number']+=1
+            print(self.rooms[self.room_code]['round_number'])
+            await self.roomUpdate('new_question')
+            # rework the front end
+            
 
     async def handle_answer(self, data):
+        print('im beeiiiinngggg handled')
         room = self.rooms[self.room_code]
         player = next(p for p in room['players'] if p['user'] == self.user.username)
-        
+        print(player)
+        player['answers'].append(data['answer'])
         player['answered'] = True
-        await self.channel_layer.group_send({
-                'type': 'answer_recieved',
-                'player': player
-            })
+        await self.roomUpdate('answer_recieved')
+        # rework the front end
+        
+        print(room['question']['correct_answer'])
         
         # Add answer validation and scoring logic here
-        if data['answer'] == room['current_question']['correct_answer']:
+        if data['answer'] == room['question']['correct_answer']:
             player['score'] += 10
         if(True):
             if  all(p['answered'] for p in room['players']):
-                print("answer recieved", room['players'])
+                print("all submitted ")
                 for player in room["players"]:
                     player["answered"] = False
-                await self.send_next_question(room)
+                await self.roomUpdate('scores')
             #return
         
 
@@ -284,15 +269,9 @@ class QuizConsumer(AsyncWebsocketConsumer):
         
         #room = self.rooms[self.room_code]
         print('ive ended the game',room['players'])
-        await self.channel_layer.group_send(
-            self.room_code,
-            {
-                'type': 'update_scores',
-                'players': room['players'],
-                'leader' : room['leader'],
-                'room_code': self.room_code
-            }
-        )
+        await self.roomUpdate('update_scores')
+        # rework the front end
+        
     async def leave_room(self):
         
 
@@ -303,9 +282,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.channel_name
             
         )
-        await self.send(text_data=json.dumps({
-                'type': 'player_disconnected',
-            }))
+        await self.requestUpdate('player_disconnected')
+        
         if not room['players']:
             del self.rooms[self.room_code]
         else:
@@ -314,6 +292,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 room['players'][0]['leader'] = True
                 room['leader']=room['players'][0]
             print(room['leader'])
+            await self.roomUpdate('player_left')
+            # rework the front end
             await self.channel_layer.group_send(
                 
                 self.room_code,
@@ -339,3 +319,36 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
     async def player_left(self, event):
         await self.send(text_data=json.dumps(event))
+
+
+
+    ##### NEW LOGIC
+    async def roomUpdate(self,message):
+        
+        print(message)
+        await self.channel_layer.group_send(
+            self.room_code,
+            {
+                'type': 'updateUsers',
+                'message': message,
+                'info': self.rooms[self.room_code]
+            }
+        )
+    async def updateUsers(self,message):
+        await self.send(text_data=json.dumps({
+                'type': message,
+                
+            }))
+    async def requestUpdate(self,message):
+        await self.send(text_data=json.dumps({
+                'type': message
+            }))
+    async def errortUpdate(self,message):
+        await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message' : message
+            }))
+
+    async def allReady(self):
+
+        return
