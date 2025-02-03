@@ -70,7 +70,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.room_code,
             self.channel_name
         )
-        await self.roomUpdate('room_created')
+        await self.propagate_room_event('room_created')
         # rework the front end too
         
         
@@ -104,7 +104,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.room_code,
             self.channel_name
         )
-        await self.roomUpdate('player_joined')
+        await self.propagate_room_event('player_joined')
         # rework the front end here 
         
 
@@ -115,7 +115,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
         if(player['leader']):
             player['ready'] = True
         
-        await self.roomUpdate('player_status')
+        await self.propagate_room_event('player_status')
         #rework the front end
         
 
@@ -219,7 +219,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
         if(self.rooms[self.room_code]['question']):
             self.rooms[self.room_code]['round_number']+=1
             print(self.rooms[self.room_code]['round_number'])
-            await self.roomUpdate('new_question')
+            await self.propagate_room_event('new_question')
             # rework the front end
             
 
@@ -230,7 +230,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
         print(player)
         player['answers'].append(data['answer'])
         player['answered'] = True
-        await self.roomUpdate('answer_recieved')
+        await self.propagate_room_event('answer_recieved')
         # rework the front end
         
         print(room['question']['correct_answer'])
@@ -243,7 +243,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 print("all submitted ")
                 for player in room["players"]:
                     player["answered"] = False
-                await self.roomUpdate('scores')
+                await self.propagate_room_event('scores')
             #return
         
 
@@ -269,7 +269,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
         
         #room = self.rooms[self.room_code]
         print('ive ended the game',room['players'])
-        await self.roomUpdate('update_scores')
+        await self.propagate_room_event('update_scores')
         # rework the front end
         
     async def leave_room(self):
@@ -292,7 +292,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 room['players'][0]['leader'] = True
                 room['leader']=room['players'][0]
             print(room['leader'])
-            await self.roomUpdate('player_left')
+            await self.propagate_room_event('player_left')
             # rework the front end
             await self.channel_layer.group_send(
                 
@@ -323,22 +323,25 @@ class QuizConsumer(AsyncWebsocketConsumer):
 
 
     ##### NEW LOGIC
-    async def roomUpdate(self,message):
+    async def propagate_room_event(self,message):
         
         print(message)
         await self.channel_layer.group_send(
             self.room_code,
             {
-                'type': 'updateUsers',
-                'message': message,
-                'info': self.rooms[self.room_code]
+                'type': 'handle_room_broadcast',
+                'event_type': message,
             }
         )
-    async def updateUsers(self,message):
+    async def handle_room_broadcast(self,event):
         await self.send(text_data=json.dumps({
-                'type': message,
-                
+                'type': event['event_type'],
+                'info': self.rooms[self.room_code]
             }))
+        
+
+
+    
     async def requestUpdate(self,message):
         await self.send(text_data=json.dumps({
                 'type': message

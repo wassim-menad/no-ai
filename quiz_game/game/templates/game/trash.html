@@ -1,0 +1,97 @@
+<div x-data="quiz()" class="qcm-container">
+    <div class="game-card">
+      <!-- Progress Header -->
+      <div class="progress-container">
+        <span class="progress-text">
+          Question <span x-text="currentQuestionIndex + 1"></span>/
+          <span x-text="10"></span>
+        </span>
+        <div class="progress-bar">
+          <div class="progress-fill" 
+               :style="`width: ${progressPercentage}%`"></div>
+        </div>
+      </div>
+  
+      <!-- Question -->
+      <h2 x-text="currentQuestion.text" class="question-text"></h2>
+  
+      <!-- Choices -->
+      <div class="choices-container">
+        <template x-for="(choice, index) in currentQuestion.choices" :key="index">
+          <label class="choice-label"
+                 :class="{
+                   'correct-answer': showResults && choice.correct,
+                   'incorrect-answer': showResults && selectedAnswer === index && !choice.correct
+                 }">
+            <input type="radio"
+                   name="qcmChoice"
+                   class="choice-input"
+                   :value="index"
+                   x-model="selectedAnswer"
+                   :disabled="showResults">
+            <div class="choice-indicator"
+                 :class="{ 'selected-choice': selectedAnswer === index }">
+              <span x-text="String.fromCharCode(65 + index)"></span>
+            </div>
+            <span x-text="choice.text" class="choice-text"></span>
+          </label>
+        </template>
+      </div>
+  
+      <!-- Action Button -->
+      <button class="submit-btn"
+              @click="handleSubmission"
+              :disabled="!isAnswerSelected">
+        <span x-text="buttonLabel"></span>
+      </button>
+  
+      <!-- Results Screen -->
+      <div class="result-container" x-show="showFinalScreen">
+        <h3 class="result-title">Quiz Complete!</h3>
+        <p class="score-display">
+          Score: <span x-text="userScore"></span>/<span x-text="totalQuestions"></span>
+        </p>
+        <button class="restart-btn" @click="resetQuiz">
+          Try Again ↻
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  function quiz() {
+    return {
+      // State management
+      currentQuestionIndex: 0,
+      selectedAnswer: null,
+      showResults: false,
+      showFinalScreen: false,
+      userScore: 0,
+  
+      // Data stores
+      questions: [], // Populate with your Q/A data
+      
+      // Computed properties
+      get totalQuestions() {
+        return this.questions.length;
+      },
+      get progressPercentage() {
+        return (this.currentQuestionIndex + 1) / this.totalQuestions * 100;
+      },
+      get isAnswerSelected() {
+        return this.selectedAnswer !== null;
+      },
+      get buttonLabel() {
+        return this.showResults ? 'Continue' : 'Check Answer';
+      },
+      get currentQuestion() {
+        return this.questions[this.currentQuestionIndex];
+      },
+  
+      // Add your methods here:
+      handleSubmission() { /* ... */ },
+      resetQuiz() { /* ... */ },
+      checkAnswer() { /* ... */ },
+      moveToNextQuestion() { /* ... */ }
+    }
+  }

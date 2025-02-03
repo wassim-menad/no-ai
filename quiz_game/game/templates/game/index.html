@@ -125,6 +125,7 @@
             function roominfo(){
                 return {
                     code: '',
+                    currentView:'home',
                     leader: false,
                     players: [],
                     ready:false,
@@ -156,67 +157,138 @@
                     updatequestion(question){
                         this.question = question
                         
+                    },
+                    updateView(currentView){
+                        this.currentView = currentView
                     }
+
                 }
             }
     </script>
 
 <div x-data="roominfo()">
-
-    <div id="lobby" >
+<template x-if="currentView === 'home'">
+    <div>
         <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
         <label for="joinRoomCode">Join Room Code:</label>
         <input type="text" id="joinRoomCode">
         <button class="btn btn-primary" onclick="joinRoom()">Join Room</button>
         <div id="players"></div>
     </div>
+  </template>
 
-
-    <div class="quiz-room" id="quiz-room" style="display: none;" >
+  <template x-if="currentView === 'lobby'">
+    <div>
         <h1 class="room-title">Quiz Room (<span x-text="code"></span>) 🎮</h1>
         
 
-            <template x-for="player in players">
-                <div class="player"  x-bind:class="{'leader': player.leader}">
-                    <div>
-                        <span class="player-name" x-text="player.user"></span>
-                        <span class="leader-badge" x-text="player.leader ? '👑' : ''"></span>
-                    </div>
-                    
-                        <span x-text="player.score"></span>
-                    
-
-                        <span class="player-status" x-text="player.leader ? '' : (player.ready ? 'Ready' : 'Not Ready')" x-bind:class="player.ready ? 'status-ready' : 'status-not-ready'"></span>
-
-
-                    
+        <template x-for="player in players">
+            <div class="player"  x-bind:class="{'leader': player.leader}">
+                <div>
+                    <span class="player-name" x-text="player.user"></span>
+                    <span class="leader-badge" x-text="player.leader ? '👑' : ''"></span>
                 </div>
-            </template>
-            
+                
+                    <span x-text="player.score"></span>
+                
 
-        <div class="controls">
-            <!-- Display Start button for leader -->
-             <template x-if="leader">
-                <button id="nextt" class="start-btn" onclick="startGame()">Start Game</button>
-             </template>
-             <template x-if="!leader && !ready">
-                <button id="nextt" class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
-             </template>
-             <template x-if="!leader && ready">
-                <button class="ready-btn" style="background-color: #dc3545;" onclick="toggleReady()">cancel!</button>
-             </template>
-             <button class="btn" onclick="Senddisconnect()">disconnect</button>
-            <!-- Display Ready button for non-leaders -->
-            <!-- <button class="ready-btn">I'm Ready!</button> -->
-        </div>
-        <button class="start-btn" id='next-question' onclick="nextQuestion()">Snext question</button>
-    </div>
-    <div id="game"  style="display: none;">
-        <div id="question"></div>
-        <div id="options1"></div>
+                    <span class="player-status" x-text="player.leader ? '' : (player.ready ? 'Ready' : 'Not Ready')" x-bind:class="player.ready ? 'status-ready' : 'status-not-ready'"></span>
+
+
+                
+            </div>
+        </template>
         
-        <button class="btn" id="next_button" onclick="submitAnswer()">submit</button>
+
+    <div class="controls">
+        <!-- Display Start button for leader -->
+         <template x-if="leader">
+            <button id="nextt" class="start-btn" onclick="startGame()">Start Game</button>
+         </template>
+         <template x-if="!leader && !ready">
+            <button id="nextt" class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
+         </template>
+         <template x-if="!leader && ready">
+            <button class="ready-btn" style="background-color: #dc3545;" onclick="toggleReady()">cancel!</button>
+         </template>
+         <button class="btn" onclick="Senddisconnect()">disconnect</button>
+        <!-- Display Ready button for non-leaders -->
+        <!-- <button class="ready-btn">I'm Ready!</button> -->
     </div>
+    </div>
+  </template>
+
+  <template x-if="currentView === 'game'">
+    <div>
+      
+        <div class="progress-container">
+            <span class="progress-text">
+              Question <span x-text="currentQuestionIndex + 1"></span>/
+              <span x-text="10"></span>
+            </span>
+            <div class="progress-bar">
+              <div class="progress-fill" 
+                   :style="`width: ${progressPercentage}%`"></div>
+            </div>
+          </div>
+
+          <h2 x-text="question.text" class="question-text"></h2>
+
+
+          <div class="choices-container">
+            <template x-for="(choice, index) in currentQuestion.choices" :key="index">
+              <label class="choice-label"
+                     :class="{
+                       'correct-answer': showResults && choice.correct,
+                       'incorrect-answer': showResults && selectedAnswer === index && !choice.correct
+                     }">
+                <input type="radio"
+                       name="qcmChoice"
+                       class="choice-input"
+                       :value="index"
+                       x-model="selectedAnswer"
+                       :disabled="showResults">
+                <div class="choice-indicator"
+                     :class="{ 'selected-choice': selectedAnswer === index }">
+                  <span x-text="String.fromCharCode(65 + index)"></span>
+                </div>
+                <span x-text="choice.text" class="choice-text"></span>
+              </label>
+            </template>
+          </div>
+
+
+          <button class="submit-btn"
+              @click="handleSubmission"
+              :disabled="!isAnswerSelected">
+        <span x-text="buttonLabel"></span>
+      </button>
+
+
+
+      <div class="result-container" x-show="showFinalScreen">
+        <h3 class="result-title">Quiz Complete!</h3>
+        <p class="score-display">
+          Score: <span x-text="userScore"></span>/<span x-text="totalQuestions"></span>
+        </p>
+        <button class="restart-btn" @click="resetQuiz">
+          Try Again ↻
+        </button>
+      </div>
+
+
+
+
+    </div>
+  </template>
+
+
+</div>
+
+    
+
+
+    
 
     <!-- this the expirimentall response window -->
     <div class="quiz-room1" id="answer-room" style="display: none;">
@@ -260,13 +332,13 @@
                 const data = JSON.parse(e.data);
                 console.log(data)
                 
-                leader=data.type.info.leader;
-                players=data.type.info.players;
+                leader=data.info.leader;
+                players=data.info.players;
                 //console.log(roomCode,leader,players)
-                switch (data.type.message) {
+                switch (data.type) {
     case 'room_created':
-        roomCode=data.type.info.code;
-        console.log('room has been created');
+        roomCode=data.info.code;
+        
         roomcreated(roomCode, players, leader);
         break;
 
@@ -275,15 +347,15 @@
         break;
 
     case 'new_question':
-        console.log(data.type.info.question.text);
-        window.roominfoComponent.updatequestion(data.type.info.question);
+        console.log(data.info.question.text);
+        window.roominfoComponent.updatequestion(data.info.question);
         console.log("step 1");
-        showQuestion(data.type.info.question);
+        showQuestion(data.info.question);
         document.getElementById('next_button').style.display = 'block';
         break;
 
     case 'player_joined':
-        roomCode=data.type.info.code;
+        roomCode=data.info.code;
         console.log('player has joined');
         roomcreated(roomCode, players,leader);
         break;
@@ -371,14 +443,7 @@
             viewAnswer()
             
         }
-        function roomcreated(roomCode , players , leader) {
-            viewQuizRoom()
-            window.roominfoComponent.updatecode(roomCode)
-            window.roominfoComponent.updatePlayers(players)
-            window.roominfoComponent.updateLeader(leader)
-            //print('room creation finished')
-            
-        }
+        
 
         function joinRoom() {
             const joinRoomCode = document.getElementById('joinRoomCode').value.toUpperCase();
@@ -469,7 +534,18 @@
             document.getElementById('answer-room').style.display = 'block';
         }
 
-        
+        // imad suggested
+
+        function roomcreated(roomCode , players , leader) {
+            currentView = 'lobby';
+            window.roominfoComponent.updateView(currentView)
+            window.roominfoComponent.updatecode(roomCode)
+            window.roominfoComponent.updatePlayers(players)
+            window.roominfoComponent.updateLeader(leader)
+            //print('room creation finished')
+            
+        }
+
     </script>
     {% else %}
     <h1>You are not authenticated</h1>

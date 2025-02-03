@@ -22,3 +22,8 @@ def index(request):
     Renders the homepage where users input their name and join or create a room.
     """
     return render(request, 'game/index.html')
+def room(request):
+    """
+    Renders the homepage where users input their name and join or create a room.
+    """
+    return render(request, 'game/room.html')
