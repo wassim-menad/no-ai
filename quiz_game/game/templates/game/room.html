@@ -3,228 +3,778 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beautiful QCM Game</title>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <title>Quiz Game</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <style>
-        /* Base Styles */
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-        }
+        :root {
+    --primary-color: #4A90E2;
+    --primary-hover: #357ABD;
+    --background-color: #f5f7fa;
+    --text-color: #2d3748;
+    --input-border: #e2e8f0;
+    --container-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
 
-        .qcm-container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 1rem;
-        }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: 2rem;
+    color: var(--text-color);
+    justify-content: center;
+}
 
-        .game-card {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 2rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s;
-        }
+.container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--container-shadow);
+    justify-content: center;
+}
 
-        .progress-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-        .progress-text {
-            color: #6b7280;
-            font-weight: 500;
-        }
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
 
-        .progress-bar {
-            width: 6rem;
-            height: 0.5rem;
-            background: #e5e7eb;
-            border-radius: 1rem;
-        }
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-        .progress-fill {
-            height: 100%;
-            background: #10b981;
-            border-radius: 1rem;
-            transition: width 0.5s;
-        }
+input[type="text"] {
+    padding: 0.75rem;
+    border: 2px solid var(--input-border);
+    border-radius: 8px;
+    width: 200px;
+    margin: 0 1rem;
+    transition: border-color 0.2s ease;
+}
 
-        .question-text {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 1.5rem;
-        }
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
 
-        .choice-label {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+label {
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
 
-        .choice-label:hover {
-            border-color: #c4b5fd;
-        }
+#players {
+    margin-top: 2rem;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
 
-        .choice-circle {
-            width: 1.5rem;
-            height: 1.5rem;
-            border: 2px solid #d1d5db;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
+.player-card {
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 500;
+    transition: transform 0.2s ease;
+}
 
-        .choice-selected {
-            background: #6366f1;
-            border-color: #4f46e5;
-            color: white;
-        }
+.player-card:hover {
+    transform: translateY(-2px);
+}
 
-        .submit-btn {
-            width: 100%;
-            padding: 0.75rem 1.5rem;
-            background: #6366f1;
-            color: white;
-            font-weight: 600;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+/* Responsive Design */
+@media (max-width: 640px) {
+    .container {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+    
+    div {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    input[type="text"] {
+        width: auto;
+        margin: 0;
+    }
+}
 
-        .submit-btn:hover {
-            background: #4f46e5;
-        }
+.room-title {
+    color: #2d3748;
+    font-size: 1.8rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
 
-        .submit-btn:disabled {
-            background: #d1d5db;
-            cursor: not-allowed;
-        }
+.room-title span {
+    color: #4A90E2;
+    font-weight: 600;
+}
 
-        .correct-answer {
-            background: #dcfce7;
-            border-color: #34d399;
-        }
+.player {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    margin: 0.5rem 0;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+}
 
-        .incorrect-answer {
-            background: #fee2e2;
-            border-color: #ef4444;
-        }
+.player.leader {
+    border-left: 4px solid #4A90E2;
+    background: #f8fafc;
+}
 
-        .result-container {
-            text-align: center;
-        }
+.player:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
 
-        .final-score {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #1f2937;
-        }
+.player-name {
+    font-weight: 500;
+    color: #2d3748;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-        .restart-btn {
-            color: #6366f1;
-            font-weight: 500;
-            background: none;
-            border: none;
-            cursor: pointer;
-        }
+.leader-badge {
+    margin-left: 0.5rem;
+    font-size: 1.2rem;
+}
 
-        .restart-btn:hover {
-            color: #4f46e5;
-        }
+.score {
+    color: #48bb78;
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+}
+
+.player-status {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.status-ready {
+    background: #48bb7820;
+    color: #48bb78;
+}
+
+.status-not-ready {
+    background: #f5656520;
+    color: #f56565;
+}
+.status-leader {
+    background: #ffe83b2f;
+    color: #d6af00;
+}
+
+/* Layout structure */
+div:has(>.player) {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .room-title {
+        font-size: 1.5rem;
+        flex-direction: column;
+    }
+    
+    .player {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+    
+    .score {
+        text-align: left;
+        order: -1;
+        align-self: flex-end;
+    }
+    
+    .player-status {
+        align-self: flex-start;
+    }
+}
+.controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.start-btn {
+    background: #4A90E2;
+    color: white;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.start-btn:hover {
+    background: #357ABD;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.ready-btn {
+    background: #48BB78;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.ready-btn[style*="dc3545"] {
+    background: #DC3545 !important;
+}
+
+.ready-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+
+/* Focus states */
+button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .controls {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Button animations */
+button:active {
+    transform: translateY(1px);
+}
+.progress-container {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin: 1rem auto;
+}
+
+.progress-text {
+    display: block;
+    color: #718096;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.progress-text span {
+    color: #4A90E2;
+    font-weight: 600;
+}
+
+.question-text {
+    color: #2d3748;
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.responses {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    padding: 1.25rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.radio-label:hover {
+    transform: translateY(-2px);
+    border-color: #4A90E2;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.1);
+}
+
+.radio-label.correct-answer {
+    border-color: #48BB78;
+    background: #f0fff4;
+}
+
+.radio-label.incorrect-answer {
+    border-color: #FC8181;
+    background: #fff5f5;
+}
+
+.response {
+    margin-right: 1rem;
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: #4A90E2;
+}
+
+.submit-btn {
+    background: #4A90E2;
+    color: white;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+.submit-btn:hover {
+    background: #357ABD;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+#next-question {
+    background: #48BB78;
+    margin-left: 1rem;
+}
+
+#next-question:hover {
+    background: #38a169;
+}
+
+/* Disabled state */
+.response:disabled + span {
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+/* Correct answer highlight */
+.getLabelClasses.correct-answer {
+    animation: pulseCorrect 1.5s ease;
+}
+
+@keyframes pulseCorrect {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+    .progress-container {
+        padding: 1.5rem;
+    }
+    
+    .question-text {
+        font-size: 1.25rem;
+    }
+    
+    .submit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    #next-question {
+        margin-left: 0;
+        margin-top: 1rem;
+        width: 100%;
+    }
+    
+    .radio-label {
+        padding: 1rem;
+    }
+}
+        
+
     </style>
 </head>
-<body>
-    <div x-data="qcmGame()" class="qcm-container">
-        <div class="game-card">
-            <!-- Progress Indicator -->
-            <div class="progress-container">
-                <span class="progress-text">
-                    Question <span x-text="currentQuestionIndex + 1"></span>/
-                    <span x-text="questions.length"></span>
-                </span>
-                <div class="progress-bar">
-                    <div class="progress-fill" 
-                         :style="`width: ${(currentQuestionIndex + 1) / questions.length * 100}%`"></div>
+
+
+
+    {% if request.user.is_authenticated %}
+    <div class="container">
+    <div id="intro">
+        <h2>Welcome to the Quiz Game</h2>
+
+        <h3>Hi {{ request.user.username }}</h3>
+    </div>
+    <script>
+            function roominfo(){
+                return {
+                    code: '',
+                    currentView:'home',
+                    leader: false,
+                    players: [],
+                    ready:false,
+                    question:null,
+                    question_index:0,
+                    showResults:false,
+                    selectedAnswer:null,
+                    init() {
+                        window.roominfoComponent = this;
+                    },
+                    updateSelectedAnswer(answer) {
+                        
+                        this.selectedAnswer = answer;
+                    },
+                    updatecode(code){
+                        this.code = code
+                    },
+                    updatePlayers(players){
+                        this.players = players
+                        if(players){
+                            for(let player of players){
+                                if(player.user == '{{ request.user.username }}'){
+                                    this.ready = player.ready 
+                                }
+                            }
+                        }
+                    },
+                    updateLeader(leader){
+                        if (leader == '{{ request.user.username }}'){
+                            this.leader = true
+                        }else{
+                            this.leader = false
+                        }
+                    },
+                    updatequestion(question){
+                        this.question = question
+                        
+                    },
+                    updateView(currentView){
+                        this.currentView = currentView
+                    },updateshowResults(value){
+                        this.showResults = value
+                    },getLabelClasses(index){
+                        if (!this.showResults) return '';
+  
+                        const isCorrect = index === this.question.correct_answer;
+                        const isSelected = index === this.selectedAnswer;
+            
+                        return {
+                            'correct-answer': isCorrect,
+                            'incorrect-answer': !isCorrect && isSelected
+                        };
+                    }
+
+                }
+            }
+
+    </script>
+
+<div  x-data="roominfo()">
+<template x-if="currentView === 'home'">
+    <div>
+        <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
+        <label for="joinRoomCode">Join Room Code:</label>
+        <input type="text" id="joinRoomCode">
+        <button class="btn btn-primary" onclick="joinRoom()">Join Room</button>
+        <div id="players"></div>
+    </div>
+  </template>
+
+  <template x-if="currentView === 'lobby'">
+    <div>
+        <h1 class="room-title">Quiz Room (<span x-text="code"></span>) 🎮</h1>
+        <template x-for="player in players">
+            <div class="player"  x-bind:class="{'leader': player.leader}">
+                <div>
+                    <span class="player-name" x-text="player.user"></span>
+                    
+                    <span class="leader-badge" x-text="player.leader ? '👑' : ''"></span>
                 </div>
+                
+                    <span class="score" x-text="player.score ? player.score : ''"></span>
+                
+
+                    <span class="player-status" x-text="player.leader ? 'Leader' : (player.ready ? 'Ready' : 'Not Ready')" x-bind:class="player.leader ? 'status-leader' : (player.ready ? 'status-ready' : 'status-not-ready')"></span>
+
+
             </div>
+        </template>
+        
 
-            <!-- Question -->
-            <h2 x-text="currentQuestion.question" class="question-text"></h2>
+    <div class="controls">
+        <!-- Display Start button for leader -->
+         <template x-if="leader">
+            <button id="nextt" class="start-btn" onclick="startGame()">Start Game</button>
+         </template>
+         <template x-if="!leader && !ready">
+            <button id="nextt" class="ready-btn" onclick="toggleReady()">I'm Ready!</button>
+         </template>
+         <template x-if="!leader && ready">
+            <button class="ready-btn" style="background-color: #dc3545;" onclick="toggleReady()">cancel!</button>
+         </template>
+         <button class="btn" onclick="Senddisconnect()">disconnect</button>
+        
+    </div>
+    </div>
+  </template>
 
-            <!-- Choices -->
-            <template x-for="(choice, index) in currentQuestion.choices" :key="index">
-                <label class="choice-label"
-                       :class="{
-                           'correct-answer': showResult && choice.correct,
-                           'incorrect-answer': showResult && selectedAnswer === index && !choice.correct
-                       }">
-                    <input type="radio" 
-                           name="qcmChoice" 
-                           class="hidden"
-                           :value="index"
-                           x-model="selectedAnswer"
-                           :disabled="showResult">
-                    <div class="choice-circle" 
-                         :class="{ 'choice-selected': selectedAnswer === index }">
-                        <span x-text="String.fromCharCode(65 + index)"></span>
-                    </div>
-                    <span x-text="choice.text" class="choice-text"></span>
-                </label>
+  <template x-if="currentView === 'game'">
+    <div>
+      
+        
+            <span class="progress-text">
+              Question <span x-text="question_index "></span>/
+              <span x-text="10"></span>
+            </span>
+            
+
+          <h2 x-text="question.text" class="question-text"></h2>
+
+
+          <div class="responses">
+            <template x-for="(response, index) in question.options" :key="index">
+              <label class="radio-label" :class="getLabelClasses(index)">
+                <input type="radio"
+                  :checked="selectedAnswer === index"  
+                  class="response"
+                  :name="'question-' + question.id" 
+                  :value="index"
+                  :disabled="showResults"
+                  @change="updateSelectedAnswer(parseInt($event.target.value))"
+                >
+                <span x-text="response"></span>
+              </label>
+            </template>
+          </div>
+
+            <template x-if="!showResults">
+                <button class="submit-btn" @click="submitAnswer" id="submit-btn"> button </button>
+            </template>
+            <template x-if="showResults">
+                <button class="start-btn" id="next-question" @click="nextQuestion()">Next question</button>
             </template>
 
-            <!-- Submit Button -->
-            <button @click="submitAnswer" 
-                    class="submit-btn"
-                    :disabled="selectedAnswer === null && !showResult">
-                <span x-text="showResult ? 'Next Question' : 'Submit Answer'"></span>
-            </button>
-
-            <!-- Score Display -->
-            <div x-show="showFinalScore" class="result-container">
-                <h3 class="final-score">Quiz Completed!</h3>
-                <p class="score-text">
-                    Your score: <span x-text="score"></span>/
-                    <span x-text="questions.length"></span>
-                </p>
-                <button @click="resetGame" class="restart-btn">
-                    Play Again ↺
-                </button>
-            </div>
-        </div>
     </div>
+  </template>
 
-    <!-- The Alpine.js component code remains the same as previous answer -->
+</div>
+   
+</div>
+    
     <script>
-        function qcmGame() {
-            return {
-                currentQuestionIndex: 0,
-                selectedAnswer: null,
-                score: 0,
-                showResult: false,
-                showFinalScore: false,
-                questions: [/* Same questions array as before */],
-                // ... rest of the component logic remains identical
-            }
+     
+
+        function connectWebSocket() {
+            socket = new WebSocket('ws://' + window.location.host + '/ws/game/');
+        
+            socket.onopen = function () {
+            };
+
+            socket.onmessage = function (e) {
+                const data = JSON.parse(e.data);
+                switch (data.type) {
+    case 'room_created':
+        window.roominfoComponent.question_index= data.info.round_number ;
+        roomcreated(data.info.code, data.info.players, data.info.leader_user);
+            break;
+
+    case 'player_status':
+        window.roominfoComponent.updatePlayers(data.info.players);
+            break;
+
+    case 'new_question':
+        //TO DO : seperate question from response
+        window.roominfoComponent.question_index= data.info.round_number ;
+        showQuestion(data.info.question);
+            break;
+
+    case 'player_joined':
+        roomcreated(data.info.code, data.info.players,data.info.leader_user);
+            break;
+
+    case 'player_left':
+        window.roominfoComponent.updatePlayers(data.info.players);
+        window.roominfoComponent.updateLeader(data.info.leader_user);
+            break;
+
+    case 'update_scores':
+        roomcreated(data.info.code, data.info.players,data.info.leader_user);
+            break;
+
+    case 'player_disconnected':
+        disconnect();
+            break;
+
+    case 'answer_recieved':
+        toggleDone(data.info.players);
+            break;
+    case 'scores':
+        window.roominfoComponent.updatequestion(data.info.question);
+        showScore(data.info.players);
+            break;  
+    case 'game_started':
+        window.roominfoComponent.question_index= data.info.round_number ;
+        showQuestion(data.info.question);
+            break;              
+    default:
+        console.warn(`Unknown message type: ${data}`);
+            break;
+}
+            };
+        } 
+
+        connectWebSocket()
+        function toggleDone(players){
+            // i should make the selected option border turn blue
+            
         }
+        function nextQuestion(){
+
+            const command = { 
+                command: 'next' 
+                
+            };
+            socket.send(JSON.stringify(command));
+        }
+        function Senddisconnect(){
+            
+            const command = { command: 'leave' };
+            socket.send(JSON.stringify(command));
+            
+
+        }
+        function disconnect(){
+            window.roominfoComponent.updateView('home')
+        }
+
+        function createRoom() {
+            const command = { command: 'create' };
+            socket.send(JSON.stringify(command));
+        }
+        function showScore(players){
+            window.roominfoComponent.updateshowResults(true);
+            window.roominfoComponent.updatePlayers(players);
+        }
+        
+
+        function joinRoom() {
+            const joinRoomCode = document.getElementById('joinRoomCode').value.toUpperCase();
+            const command = { command: 'join', room_code: joinRoomCode };
+            socket.send(JSON.stringify(command));
+        }
+
+        function toggleReady() {
+            const command = { command: 'ready' };
+            socket.send(JSON.stringify(command));
+        }
+
+        function startGame() {
+            const command = { command: 'start' };
+            socket.send(JSON.stringify(command));
+        }
+
+        function submitAnswer() {
+            const selectedOption = window.roominfoComponent.selectedAnswer;
+            if (selectedOption===null) {
+                alert("Please select an answer.");
+                return;
+            }
+           
+            const command = {
+                command: 'answer',
+                answer: selectedOption
+            };
+            socket.send(JSON.stringify(command));
+        }
+
+        
+
+        function showQuestion(question) {
+            window.roominfoComponent.updateshowResults(null);
+            window.roominfoComponent.selectedAnswer= null;
+            currentView = 'game';
+            window.roominfoComponent.updatequestion(question);
+            window.roominfoComponent.updateView(currentView);
+        }
+
+
+     
+
+        function roomcreated(roomCode , players , leader) {
+            currentView = 'lobby';
+            window.roominfoComponent.updateView(currentView)
+            window.roominfoComponent.updatecode(roomCode)
+            window.roominfoComponent.updatePlayers(players)
+            window.roominfoComponent.updateLeader(leader)
+
+            
+        }
+        
+
     </script>
+    </div>
+    
+    {% else %}
+    <h1>You are not authenticated</h1>
+    <a href="{% url 'login' %}">Login</a>
+    <a href="{% url 'register' %}">Register</a>
+    {% endif %}
 </body>
 </html>

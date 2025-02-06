@@ -15,13 +15,15 @@ class QuizConsumer(AsyncWebsocketConsumer):
         self.user = self.scope["user"]
 
         
-        print(self.user)
+        
         await self.accept()
 
+    
     async def disconnect(self, close_code):
         if self.room_code:
             await self.leave_room()
 
+    
     async def receive(self, text_data):
         data = json.loads(text_data)
         command = data.get('command')
@@ -42,6 +44,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
         elif command == 'next':
             await self.send_next_question()
 
+    
     async def create_room(self, data):
         # Generate unique room code
         room_code = get_random_string(6).upper()
@@ -58,7 +61,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'answers':[],
                 'score': 0
             }],
-            'leader': self.user.username,
+            'leader_user': self.user.username,
             'game_started': False,
             'question': None,
             'round_number': 0,
@@ -71,10 +74,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         await self.propagate_room_event('room_created')
-        # rework the front end too
         
-        
-
+    
     async def join_room(self, data):
         room_code = data['room_code'].upper()
         username = self.user.username
@@ -105,9 +106,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         await self.propagate_room_event('player_joined')
-        # rework the front end here 
-        
 
+    
     async def toggle_ready(self):
         room = self.rooms[self.room_code]
         player = next(p for p in room['players'] if p['user'] == self.user.username)
@@ -116,9 +116,8 @@ class QuizConsumer(AsyncWebsocketConsumer):
             player['ready'] = True
         
         await self.propagate_room_event('player_status')
-        #rework the front end
-        
 
+    
     async def start_game(self):
         room = self.rooms[self.room_code]
         room['round_number'] = 0
@@ -136,10 +135,11 @@ class QuizConsumer(AsyncWebsocketConsumer):
             return
 
         room['game_started'] = True
-        # Here you would typically load questions from your database
-        
-        await self.send_next_question()
 
+        
+        await self.send_first_next_question()
+
+    
     async def getQuestions(self):
         room = self.rooms[self.room_code]
         questions = [
@@ -196,9 +196,9 @@ class QuizConsumer(AsyncWebsocketConsumer):
         ]
         
         if room['round_number'] < len(questions):  # Check if questions are available
-            room['question'] = questions[self.question_index]
+            room['question'] = questions[room['round_number']]
             room['round_number'] += 1  # Move to the next question
-            #print(self.question_index)
+   
             
             
             return room['question']
@@ -206,81 +206,72 @@ class QuizConsumer(AsyncWebsocketConsumer):
         else:
                 await self.gameEnd(room)
                 return
+    
+    
     async def send_next_question(self):
-        
-        print(self.user.username,'sent this question')
-        
-        # Replace with actual question loading logic
-        
-       
-        
+
         self.rooms[self.room_code]['question']=await self.getQuestions()
         
         if(self.rooms[self.room_code]['question']):
-            self.rooms[self.room_code]['round_number']+=1
-            print(self.rooms[self.room_code]['round_number'])
+           
+       
             await self.propagate_room_event('new_question')
-            # rework the front end
-            
 
+    
+    async def send_first_next_question(self):
+        
+
+ 
+        self.rooms[self.room_code]['question']=await self.getQuestions()
+        
+        if(self.rooms[self.room_code]['question']):
+            
+  
+            await self.propagate_room_event('game_started')
+
+    
     async def handle_answer(self, data):
-        print('im beeiiiinngggg handled')
+
         room = self.rooms[self.room_code]
         player = next(p for p in room['players'] if p['user'] == self.user.username)
-        print(player)
+
         player['answers'].append(data['answer'])
         player['answered'] = True
         await self.propagate_room_event('answer_recieved')
-        # rework the front end
+
         
-        print(room['question']['correct_answer'])
-        
+    
         # Add answer validation and scoring logic here
         if data['answer'] == room['question']['correct_answer']:
             player['score'] += 10
         if(True):
             if  all(p['answered'] for p in room['players']):
-                print("all submitted ")
+              
                 for player in room["players"]:
                     player["answered"] = False
                 await self.propagate_room_event('scores')
-            #return
-        
 
-        ####check_results()
-        ##await self.channel_layer.group_send(
-        ##    self.room_code,
-        ##    {
-        ##        'type': 'update_scores',
-        ##        'players': room['players'],
-        ##        'leader' : room['leader'],
-        ##        'room_code': self.room_code
-        ##    }
-        ##)
 
-        #await self.send_next_question(room)
     async def checkReady(self,room):
         if  all(p['answered'] for p in room['players']):
-                print("answer recieved", room['players'])
+        
                 for player in room["players"]:
                     player["answered"] = False
                 await self.send_next_question(room)
+    
+    
     async def gameEnd(self,room):
-        
-        #room = self.rooms[self.room_code]
-        print('ive ended the game',room['players'])
+
         await self.propagate_room_event('update_scores')
-        # rework the front end
+
         
     async def leave_room(self):
-        
 
         room = self.rooms[self.room_code]
         room['players'] = [p for p in room['players'] if p['user'] != self.user.username]
         await self.channel_layer.group_discard(
             self.room_code,
             self.channel_name
-            
         )
         await self.requestUpdate('player_disconnected')
         
@@ -290,42 +281,15 @@ class QuizConsumer(AsyncWebsocketConsumer):
             # If leader leaves, assign new leader
             if not any(p['leader'] for p in room['players']):
                 room['players'][0]['leader'] = True
-                room['leader']=room['players'][0]
-            print(room['leader'])
+                room['leader_user']=room['players'][0]['user']
+      
             await self.propagate_room_event('player_left')
-            # rework the front end
-            await self.channel_layer.group_send(
-                
-                self.room_code,
-                {
-                    'type': 'player_left',
-                    'players': room['players'],
-                    'leader': room['leader']
-                }
-            )
-
-    # Handler methods
-    async def player_joined(self, event):
-        await self.send(text_data=json.dumps(event))
-
-    async def player_status(self, event):
-        await self.send(text_data=json.dumps(event))
-
-    async def new_question(self, event):
-        await self.send(text_data=json.dumps(event))
-
-    async def update_scores(self, event):
-        await self.send(text_data=json.dumps(event))
-
-    async def player_left(self, event):
-        await self.send(text_data=json.dumps(event))
-
 
 
     ##### NEW LOGIC
     async def propagate_room_event(self,message):
         
-        print(message)
+     
         await self.channel_layer.group_send(
             self.room_code,
             {
@@ -333,25 +297,24 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'event_type': message,
             }
         )
+    
+    
     async def handle_room_broadcast(self,event):
         await self.send(text_data=json.dumps({
                 'type': event['event_type'],
                 'info': self.rooms[self.room_code]
             }))
         
-
-
     
     async def requestUpdate(self,message):
         await self.send(text_data=json.dumps({
                 'type': message
             }))
+    
+    
     async def errortUpdate(self,message):
         await self.send(text_data=json.dumps({
                 'type': 'error',
                 'message' : message
             }))
 
-    async def allReady(self):
-
-        return
