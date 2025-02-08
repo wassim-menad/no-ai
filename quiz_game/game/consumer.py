@@ -59,13 +59,13 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'leader': True,
                 'answered':False,
                 'answers':[],
-                'score': 0
+                'score': 0,
+                'color': '#FFEEAD',
             }],
             'leader_user': self.user.username,
             'game_started': False,
             'question': None,
             'round_number': 0,
-            
             'code':room_code
         }
 
@@ -90,7 +90,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
             await self.errortUpdate('Room is full')
             
             return
-
+        color = self.generate_unique_color()
         self.room_code = room_code
         room['players'].append({
             'user': username,
@@ -98,9 +98,11 @@ class QuizConsumer(AsyncWebsocketConsumer):
             'leader': False,
             'answered':False,
             'answers':[],
-            'score': 0
+            'score': 0,
+            'color':color
         })
-
+        
+        
         await self.channel_layer.group_add(
             self.room_code,
             self.channel_name
@@ -318,3 +320,7 @@ class QuizConsumer(AsyncWebsocketConsumer):
                 'message' : message
             }))
 
+    def generate_unique_color(self):
+        # Use a predefined palette for better consistency
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FF9F76']
+        return get_random_string(1, allowed_chars=colors)

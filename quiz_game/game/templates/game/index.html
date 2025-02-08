@@ -452,6 +452,85 @@ button:active {
         padding: 1rem;
     }
 }
+
+
+.answer-bubbles {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.player-bubble {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgb(255, 255, 255);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  cursor: help;
+}
+
+.player-container {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.player-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+    transition: transform 0.2s ease;
+}
+
+
+.player-icon {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 8px;
+}
+
+.score-display {
+    font-size: 18px;
+    font-weight: bold;
+    color: rgb(255, 255, 255);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    margin-top: 10px;
+    text-align: center;
+}
+
+/* Optional: Style adjustments for better visibility */
+
+
+
+.player-name-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.player-icon:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+.player-icon-hldr{
+    background-color: #a5bae079;
+    border-radius: 5px;
+    padding: 5px;
+}
+
         
 
     </style>
@@ -478,6 +557,7 @@ button:active {
                     question_index:0,
                     showResults:false,
                     selectedAnswer:null,
+                    showName: null,
                     init() {
                         window.roominfoComponent = this;
                     },
@@ -598,6 +678,9 @@ button:active {
           <h2 x-text="question.text" class="question-text"></h2>
 
 
+        
+
+
           <div class="responses">
             <template x-for="(response, index) in question.options" :key="index">
               <label class="radio-label" :class="getLabelClasses(index)">
@@ -610,9 +693,50 @@ button:active {
                   @change="updateSelectedAnswer(parseInt($event.target.value))"
                 >
                 <span x-text="response"></span>
+                
+                <!-- Player answer bubbles -->
+                <div class="answer-bubbles" x-show="showResults">
+                    
+                    <template x-for="(player, idx) in players.filter(p => { 
+                        const answerIndex = p.answers[question_index-1];
+                        
+                        return answerIndex === index;
+                    })" 
+                    :key="player.id">
+                        <div class="player-bubble" 
+                             :style="`background-color: ${player.color}`"
+                             :title="`${player.user} answered ${player.answers[question_index]}`">
+                             <!-- Temporary debug display -->
+                             <span x-text="player.answers[question_index]" class="debug-number"></span>
+                        </div>
+                    </template>
+                </div>
               </label>
             </template>
+            <div class="player-container">
+                <template x-for="(player, index) in players" :key="index">
+                    <div class="player-icon-hldr">
+                    <div class="player-icon"
+                         :style="`background-color: ${player.color}`"
+                         :title="player.user"
+                         x-data="{ playerName: player.user }"
+                         @mouseover="showName = playerName"
+                         @mouseleave="showName = null">
+                        <span x-show="showName === playerName" 
+                              class="player-name-tooltip"
+                              x-text="playerName"></span>
+                        <!-- Add score display -->
+                        
+                    </div>
+                    <div class="score-display" x-text="player.score"></div>
+                </div>
+                </template>
+            </div>
           </div>
+
+
+
+
 
             <template x-if="!showResults">
                 <button class="submit-btn" @click="submitAnswer" id="submit-btn"> button </button>
@@ -621,7 +745,14 @@ button:active {
                 <button class="start-btn" id="next-question" @click="nextQuestion()">Next question</button>
             </template>
 
+
+
+            
     </div>
+
+
+
+
   </template>
 
 </div>
@@ -676,6 +807,7 @@ button:active {
         toggleDone(data.info.players);
             break;
     case 'scores':
+        //console.log(data.info.players[1].answers[0])
         window.roominfoComponent.updatequestion(data.info.question);
         showScore(data.info.players);
             break;  
